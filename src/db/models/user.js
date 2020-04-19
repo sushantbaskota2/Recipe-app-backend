@@ -44,6 +44,16 @@ const userSchema = new mongoose.Schema(
                 }
             }
         },
+        recipes: [
+            {
+                type: mongoose.SchemaTypes.ObjectId
+            }
+        ],
+        favorites: [
+            {
+                type: mongoose.SchemaTypes.ObjectId
+            }
+        ],
         tokens: [
             {
                 token: {
@@ -79,7 +89,7 @@ userSchema.methods.toJSON = function() {
 
     delete userObject.password;
     delete userObject.tokens;
-    delete userObject.avatar;
+
     return userObject;
 };
 
