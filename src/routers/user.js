@@ -10,7 +10,10 @@ const upload = multer({
     limits: {
         fileSize: 1000000
     },
+
     fileFilter(req, file, cb) {
+        console.log(file);
+
         if (!file.originalname.match(/\.(png|jpg|jpeg)$/)) {
             return cb(new Error('Please upload an image'));
         }
@@ -71,14 +74,31 @@ router.post(
     async (req, res) => {
         const buffer = await sharp(req.file.buffer).resize({ width: 250, height: 250 }).png().toBuffer();
         req.user.avatar = buffer;
+        console.log(buffer);
 
         await req.user.save();
-        res.send();
+        res.send(buffer);
     },
     (error, req, res, next) => {
+        console.log(error);
         res.status(400).send({ error: error.message });
     }
 );
+
+router.get('/users/me/avatar', auth, async (req, res) => {
+    console.log('aayo hai');
+
+    try {
+        const avatar = req.user.avatar;
+        if (avatar) {
+            res.send({ avatar });
+        } else {
+            throw new Error('');
+        }
+    } catch (e) {
+        res.send({ error: 'No avatar' });
+    }
+});
 
 router.delete('/users/me/avatar', auth, async (req, res) => {
     req.user.avatar = undefined;
@@ -88,6 +108,7 @@ router.delete('/users/me/avatar', auth, async (req, res) => {
 
 router.get('/users/recipes', auth, async (req, res) => {
     let recipes = [];
+
     for (let i = 0; i < req.user.recipes.length; i++) {
         try {
             id = req.user.recipes[i];
@@ -113,6 +134,7 @@ router.post('/users/recipes', auth, async (req, res) => {
     try {
         await recipe.save();
         req.user.recipes.push(recipe._id);
+
         await req.user.save();
         res.send();
     } catch (e) {
@@ -120,20 +142,62 @@ router.post('/users/recipes', auth, async (req, res) => {
     }
 });
 
-router.post('/users/favorites/', auth, async (req, res) => {
+router.patch('/users/recipes', auth, async (req, res) => {
+    const update = req.body;
+    if (!req.user.recipes.includes(req.body._id)) {
+        res.status(401).send({ error: ' Not authorized' });
+    }
+    try {
+        await Recipe.updateOne({ _id: req.body._id }, req.body);
+    } catch (e) {
+        res.send(e);
+    }
+});
+
+router.delete('/users/recipes', auth, async (req, res) => {
     if (req.body.recipeID) {
-        req.user.favorites.push(req.body.recipeID);
+        req.user.recipes.filter((rec) => rec !== req.body.recipeID);
+        await Recipe.deleteOne({ _id: req.body.recipeID });
         await req.user.save();
         res.send();
     }
 });
 
-router.get('/users/favorites', auth, async (req, res) => {
+router.post('/users/favorites/', auth, async (req, res) => {
+    if (req.body.recipeID) {
+        if (req.user.favorites.includes(req.body.recipeID)) {
+            res.send();
+        }
+        req.user.favorites.push(req.body.recipeID);
+
+        await req.user.save();
+        res.send();
+    } else {
+        res.send({ error: ' no ID received' });
+    }
+});
+
+router.delete('/users/favorites/:id', auth, async (req, res) => {
+    if (req.params.id) {
+        try {
+            req.user.favorites = req.user.favorites.filter((rec) => {
+                console.log(rec.toString() === req.params.id.toString());
+                return rec.toString() !== req.params.id.toString();
+            });
+            await req.user.save();
+            console.log(req.user.favorites);
+            res.send();
+        } catch (e) {
+            res.status(404).send({ error: 'Not Found' });
+        }
+    }
+});
+
+router.get('/users/favorites/', auth, async (req, res) => {
     let favorites = [];
     for (let i = 0; i < req.user.favorites.length; i++) {
         try {
             id = req.user.favorites[i];
-            console.log(id);
 
             recipe = await Recipe.findById(id);
         } catch (e) {
@@ -146,7 +210,7 @@ router.get('/users/favorites', auth, async (req, res) => {
     if (favorites.length > 0) {
         res.send(favorites);
     } else {
-        res.status(404).send({ error: 'No favorite recipes' });
+        res.send([]);
     }
 });
 

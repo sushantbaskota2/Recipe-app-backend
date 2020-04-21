@@ -12,7 +12,7 @@ router.get('/recipes', async (req, res) => {
         }
     } else {
         try {
-            const recipes = await Recipe.find().limit(256);
+            const recipes = await Recipe.find().limit(48);
 
             res.send(recipes);
         } catch (e) {

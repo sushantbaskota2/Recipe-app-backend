@@ -54,6 +54,18 @@ const userSchema = new mongoose.Schema(
                 type: mongoose.SchemaTypes.ObjectId
             }
         ],
+        fridge: [
+            {
+                ingName: {
+                    type: String,
+                    required: true
+                },
+                ingPrice: {
+                    type: String,
+                    required: true
+                }
+            }
+        ],
         tokens: [
             {
                 token: {
