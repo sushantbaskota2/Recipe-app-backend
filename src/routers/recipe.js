@@ -2,6 +2,15 @@ const express = require('express');
 const Recipe = require('../db/models/recipe');
 const router = express.Router();
 
+router.get('/recipes/:id', async (req, res) => {
+    try {
+        const recipe = await Recipe.findById(req.params.id);
+        res.send(recipe);
+    } catch (e) {
+        res.send();
+    }
+});
+
 router.get('/recipes', async (req, res) => {
     if (req.query.name) {
         try {

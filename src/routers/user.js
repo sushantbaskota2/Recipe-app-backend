@@ -5,6 +5,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const multer = require('multer');
 const sharp = require('sharp');
+
 const { sendWelcomeEmail, sendCancellationEmail } = require('../emails/account');
 const upload = multer({
     limits: {
@@ -28,9 +29,13 @@ router.post('/users', async (req, res) => {
 
         // sendWelcomeEmail(user.email, user.name);
         const token = await user.generateAuthToken();
+        console.log(user);
+
         res.status(200).send({ user, token });
     } catch (e) {
-        res.status(400).send(e);
+        console.log(e.message);
+
+        res.status(400).send(e.message);
     }
 });
 
@@ -125,20 +130,73 @@ router.get('/users/recipes', auth, async (req, res) => {
     if (recipes.length > 0) {
         res.send(recipes);
     } else {
-        res.status(404).send({ error: 'No own recipes' });
+        res.send([]);
     }
 });
 
 router.post('/users/recipes', auth, async (req, res) => {
-    const recipe = new Recipe(req.body);
+    console.log(req.body);
+
+    if (req.body._id) {
+        console.log('vayo');
+
+        if (req.user.recipes.filter((rec) => rec.toString() === req.body._id).length > 0) {
+            try {
+                await Recipe.findByIdAndUpdate({ _id: req.body._id }, req.body);
+            } catch (error) {
+                console.log(error);
+            }
+        }
+
+        res.send();
+    } else {
+        const recipe = new Recipe(req.body);
+        try {
+            await recipe.save();
+            req.user.recipes.push(recipe._id);
+
+            await req.user.save();
+            res.send();
+        } catch (e) {
+            res.send({ error: e });
+        }
+    }
+});
+
+router.post('/users/fridge', auth, async (req, res) => {
     try {
-        await recipe.save();
-        req.user.recipes.push(recipe._id);
+        console.log(req.body);
+        req.user.fridge.push({ ...req.body, ingPrice: Math.floor(Math.random() * 50).toString() });
 
         await req.user.save();
-        res.send();
+        console.log(req.user.fridge);
+
+        res.send(req.user);
     } catch (e) {
-        res.send({ error: e });
+        res.send(e);
+    }
+});
+
+router.delete('/users/fridge/:id', auth, async (req, res) => {
+    try {
+        console.log('delete ma aakai ho');
+
+        req.user.fridge = req.user.fridge.filter((o) => {
+            return o._id.toString() !== req.params.id.toString();
+        });
+
+        req.user.save();
+        req.send();
+    } catch (e) {
+        res.send(e);
+    }
+});
+
+router.get('/users/fridge', auth, async (req, res) => {
+    try {
+        res.send({ fridge: req.user.fridge });
+    } catch (e) {
+        res.send({ fridge: [] });
     }
 });
 
@@ -151,6 +209,22 @@ router.patch('/users/recipes', auth, async (req, res) => {
         await Recipe.updateOne({ _id: req.body._id }, req.body);
     } catch (e) {
         res.send(e);
+    }
+});
+
+router.delete('/users/recipes/:id', auth, async (req, res) => {
+    if (req.params.id) {
+        try {
+            req.user.recipes = req.user.recipes.filter((rec) => {
+                console.log(rec.toString() === req.params.id.toString());
+                return rec.toString() !== req.params.id.toString();
+            });
+            await req.user.save();
+
+            res.send();
+        } catch (e) {
+            res.status(404).send({ error: 'Not Found' });
+        }
     }
 });
 
